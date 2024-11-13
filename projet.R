@@ -140,6 +140,26 @@ knn_model <- kknn(defaut ~ ., train = train_data, test = test_data, k = 10, dist
 knn_pred <- fitted(knn_model)
 confusionMatrix(as.factor(knn_pred), as.factor(test_data$defaut))
 
+## Étape 7 : Courbe ROC pour Comparaison des Modèles
+
+# Installer et charger le package pROC pour les courbes ROC
+if(!require(pROC)) install.packages("pROC")
+library(pROC)
+
+# Créer des objets ROC pour chaque modèle
+rf_roc <- roc(test_data$defaut, as.numeric(rf_pred == "Oui"))
+log_roc <- roc(test_data$defaut, as.numeric(log_class == "Oui"))
+tree_roc <- roc(test_data$defaut, as.numeric(tree_pred == "Oui"))
+knn_roc <- roc(test_data$defaut, as.numeric(knn_pred == "Oui"))
+
+# Tracer toutes les courbes ROC sur un même graphique
+plot(rf_roc, col="blue", main="Courbes ROC des Modèles")
+plot(log_roc, col="green", add=TRUE)
+plot(tree_roc, col="red", add=TRUE)
+plot(knn_roc, col="purple", add=TRUE)
+legend("bottomright", legend=c("Random Forest", "Logistic Regression", "Decision Tree", "KNN"), 
+       col=c("blue", "green", "red", "purple"), lwd=2)
+
 ## Étape 6 : Optimiser le Modèle de Régression Logistique avec Régularisation Lasso
 
 # Nettoyer les données de test pour correspondre au modèle
@@ -170,8 +190,7 @@ library(caret)
 confusion_matrix <- confusionMatrix(as.factor(log_class_test), as.factor(test_data_clean$defaut))
 print(confusion_matrix)
 
-
-## Étape 7 : Application du Modèle aux Données projet_new et Génération des Prédictions
+## Étape 8 : Application du Modèle aux Données projet_new et Génération des Prédictions
 
 projet_new$age[projet_new$age == 999] <- NA
 projet_new$adresse[projet_new$adresse == 999] <- NA
