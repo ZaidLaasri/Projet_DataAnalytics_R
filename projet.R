@@ -140,6 +140,42 @@ knn_model <- kknn(defaut ~ ., train = train_data, test = test_data, k = 10, dist
 knn_pred <- fitted(knn_model)
 confusionMatrix(as.factor(knn_pred), as.factor(test_data$defaut))
 
+## Étape 6 : Optimiser le Modèle de Régression Logistique avec Régularisation Lasso
+
+# Charger les packages nécessaires
+if(!require(glmnet)) install.packages("glmnet")
+if(!require(caret)) install.packages("caret")
+library(glmnet)
+library(caret)
+
+# Nettoyer les données de test pour correspondre au modèle
+test_data_clean <- na.omit(test_data)
+
+# Créer x_test en s'assurant qu'il correspond bien à x_train
+x_test <- model.matrix(defaut ~ . - 1, data = test_data_clean)
+
+# Vérifier et ajouter les colonnes manquantes dans x_test pour correspondre à x_train
+missing_cols_test <- setdiff(colnames(x_train), colnames(x_test))
+for (col in missing_cols_test) {
+  x_test <- cbind(x_test, setNames(data.frame(rep(0, nrow(x_test))), col))
+}
+
+# Réorganiser les colonnes de x_test pour correspondre exactement à celles de x_train
+x_test <- x_test[, colnames(x_train)]
+
+# Convertir x_test en matrice pour la compatibilité avec le modèle Lasso
+x_test <- as.matrix(x_test)
+
+# Utiliser le meilleur lambda (déjà trouvé lors de l'entraînement du modèle)
+# Effectuer des prédictions sur l'ensemble de test nettoyé avec le modèle Lasso
+log_pred_test <- predict(final_lasso_model, newx = x_test, s = best_lambda, type = "response")
+log_class_test <- ifelse(log_pred_test > 0.4, "Oui", "Non")
+
+# Calculer et afficher la matrice de confusion
+confusion_matrix <- confusionMatrix(as.factor(log_class_test), as.factor(test_data_clean$defaut))
+print(confusion_matrix)
+
+
 ## Étape 7 : Courbe ROC pour Comparaison des Modèles
 
 # Installer et charger le package pROC pour les courbes ROC
@@ -160,69 +196,54 @@ plot(knn_roc, col="purple", add=TRUE)
 legend("bottomright", legend=c("Random Forest", "Logistic Regression", "Decision Tree", "KNN"), 
        col=c("blue", "green", "red", "purple"), lwd=2)
 
-## Étape 6 : Optimiser le Modèle de Régression Logistique avec Régularisation Lasso
-
-# Nettoyer les données de test pour correspondre au modèle
-test_data_clean <- na.omit(test_data)
-
-# Créer x_test en s'assurant qu'il correspond bien à x_train
-x_test <- model.matrix(defaut ~ . - 1, data = test_data_clean)
-
-# Vérifier et ajouter les colonnes manquantes dans x_test pour correspondre à x_train
-missing_cols_test <- setdiff(colnames(x_train), colnames(x_test))
-for (col in missing_cols_test) {
-  x_test <- cbind(x_test, setNames(data.frame(rep(0, nrow(x_test))), col))
-}
-
-# Réorganiser les colonnes de x_test pour correspondre exactement à celles de x_train
-x_test <- x_test[, colnames(x_train)]
-
-# Convertir x_test en matrice pour la compatibilité avec le modèle Lasso
-x_test <- as.matrix(x_test)
-
-# Effectuer des prédictions sur l'ensemble de test nettoyé avec le modèle Lasso
-log_pred_test <- predict(final_lasso_model, newx = x_test, type = "response")
-log_class_test <- ifelse(log_pred_test > 0.4, "Oui", "Non")
-
-# Calculer et afficher la matrice de confusion
-if(!require(caret)) install.packages("caret")
-library(caret)
-confusion_matrix <- confusionMatrix(as.factor(log_class_test), as.factor(test_data_clean$defaut))
-print(confusion_matrix)
 
 ## Étape 8 : Application du Modèle aux Données projet_new et Génération des Prédictions
 
+# Normaliser les variables continues dans projet_new et remplacer les valeurs manquantes
 projet_new$age[projet_new$age == 999] <- NA
 projet_new$adresse[projet_new$adresse == 999] <- NA
 projet_new$age[is.na(projet_new$age)] <- mean(train_data_clean$age, na.rm = TRUE)
 projet_new$adresse[is.na(projet_new$adresse)] <- mean(train_data_clean$adresse, na.rm = TRUE)
 
-projet_new$education[is.na(projet_new$education)] <- "Inconnu"
+# Assurez-vous que `education` dans `projet_new` a les mêmes niveaux que dans les données d'entraînement
 projet_new$education <- factor(projet_new$education, levels = levels(train_data_clean$education))
 
+# Normaliser les variables continues
+variables_a_normaliser <- c("revenus", "debcred", "debcarte", "autres")
 projet_new[variables_a_normaliser] <- scale(projet_new[variables_a_normaliser])
+
+# Créer `x_new` avec les mêmes colonnes que `x_train`
 x_new <- model.matrix(~ . - 1, data = projet_new)
 
+# Vérifiez et ajoutez les colonnes manquantes pour correspondre à `x_train`
 missing_cols <- setdiff(colnames(x_train), colnames(x_new))
 for (col in missing_cols) {
   x_new <- cbind(x_new, setNames(data.frame(rep(0, nrow(x_new))), col))
 }
-x_new <- x_new[, colnames(x_train)]
-x_new <- as.matrix(x_new)
-# Vérification finale
-cat("Nombre de colonnes dans x_train :", ncol(x_train), "\n")
-cat("Nombre de colonnes dans x_new :", ncol(x_new), "\n")
 
-# Prédictions sur les nouvelles données
-log_pred_new <- predict(final_lasso_model, newx = x_new, type = "response")
+# Réorganisez les colonnes de `x_new` pour correspondre à `x_train`
+x_new <- x_new[, colnames(x_train)]
+
+# Convertir `x_new` en matrice pour la compatibilité avec le modèle Lasso
+x_new <- as.matrix(x_new)
+
+# Effectuer les prédictions sur `x_new` avec le meilleur lambda
+log_pred_new <- predict(final_lasso_model, newx = x_new, s = best_lambda, type = "response")
 log_class_new <- ifelse(log_pred_new > 0.4, "Oui", "Non")
 
-# Ajouter la colonne `defaut` avec les prédictions au dataset projet_new
-projet_new$defaut <- log_class_new
+# Création du tableau final avec les informations demandées
+resultats <- data.frame(
+  client_id = projet_new$client,    # Numéro d'identification du client
+  classe_predite = log_class_new,   # Classe prédite ("Oui" ou "Non")
+  probabilite = log_pred_new        # Probabilité associée
+)
 
-# Sauvegarder le fichier final avec les prédictions
-write.csv(projet_new, "projet_new_predictions1.csv", row.names = FALSE)
+# Sauvegarder le fichier avec les prédictions
+write.csv(resultats, "projet_new_predictions.csv", row.names = FALSE)
 
 # Affichage du résumé des prédictions
 cat("Résumé des prédictions :\n")
-table(Predicted = log_class_new)
+print(table(Predicted = log_class_new))
+
+
+
