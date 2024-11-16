@@ -308,8 +308,19 @@ cat("Précision:", rf_precision, "\n")
 cat("Rappel:", rf_recall, "\n")
 cat("F1 Score:", rf_f1_score, "\n")
 
+<<<<<<< HEAD
 #4. Entraîner le modèle k-NN
 # 1. Vérification des données et gestion des valeurs manquantes
+=======
+# Charger les packages nécessaires
+if(!require(glmnet)) install.packages("glmnet")
+if(!require(caret)) install.packages("caret")
+library(glmnet)
+library(caret)
+
+# Nettoyer les données de test pour correspondre au modèle
+test_data_clean <- na.omit(test_data)
+>>>>>>> 72e52d98393604efb22f9f810da000972733e231
 
 cat("\n### Vérification des données ###\n")
 cat("Dimensions de train_data :", dim(train_data), "\n")
@@ -372,12 +383,23 @@ if (exists("knn_conf_matrix")) {
 }
 
 
+<<<<<<< HEAD
 ## Étape 6 : Optimisation du Modèle avec Régularisation Lasso
 
 # 1. Création de x_train et y_train synchronisés
 complete_indices <- complete.cases(train_data_clean)  # Identifier les lignes complètes
 x_train <- model.matrix(defaut ~ . - 1, data = train_data_clean[complete_indices, ])
 y_train <- as.numeric(train_data_clean$defaut[complete_indices]) - 1  # 0 = "Non", 1 = "Oui"
+=======
+# Utiliser le meilleur lambda (déjà trouvé lors de l'entraînement du modèle)
+# Effectuer des prédictions sur l'ensemble de test nettoyé avec le modèle Lasso
+log_pred_test <- predict(final_lasso_model, newx = x_test, s = best_lambda, type = "response")
+log_class_test <- ifelse(log_pred_test > 0.4, "Oui", "Non")
+
+# Calculer et afficher la matrice de confusion
+confusion_matrix <- confusionMatrix(as.factor(log_class_test), as.factor(test_data_clean$defaut))
+print(confusion_matrix)
+>>>>>>> 72e52d98393604efb22f9f810da000972733e231
 
 # Vérification des dimensions
 cat("Dimensions de x_train :", dim(x_train), "\n")
@@ -402,17 +424,43 @@ cat("AUC pour le modèle optimisé :", auc_lasso, "\n")
 perf_lasso <- performance(pred_obj, "tpr", "fpr")
 plot(perf_lasso, main = "Courbe ROC pour le modèle Lasso régularisé")
 
-## Étape 7 : Application du Modèle aux Données projet_new et Génération des Prédictions
+## Étape 7 : Courbe ROC pour Comparaison des Modèles
 
+<<<<<<< HEAD
 # 1. Prétraitement des données projet_new
+=======
+# Installer et charger le package pROC pour les courbes ROC
+if(!require(pROC)) install.packages("pROC")
+library(pROC)
+
+# Créer des objets ROC pour chaque modèle
+rf_roc <- roc(test_data$defaut, as.numeric(rf_pred == "Oui"))
+log_roc <- roc(test_data$defaut, as.numeric(log_class == "Oui"))
+tree_roc <- roc(test_data$defaut, as.numeric(tree_pred == "Oui"))
+knn_roc <- roc(test_data$defaut, as.numeric(knn_pred == "Oui"))
+
+# Tracer toutes les courbes ROC sur un même graphique
+plot(rf_roc, col="blue", main="Courbes ROC des Modèles")
+plot(log_roc, col="green", add=TRUE)
+plot(tree_roc, col="red", add=TRUE)
+plot(knn_roc, col="purple", add=TRUE)
+legend("bottomright", legend=c("Random Forest", "Logistic Regression", "Decision Tree", "KNN"), 
+       col=c("blue", "green", "red", "purple"), lwd=2)
+
+
+## Étape 8 : Application du Modèle aux Données projet_new et Génération des Prédictions
+
+# Normaliser les variables continues dans projet_new et remplacer les valeurs manquantes
+>>>>>>> 72e52d98393604efb22f9f810da000972733e231
 projet_new$age[projet_new$age == 999] <- NA
 projet_new$adresse[projet_new$adresse == 999] <- NA
 projet_new$age[is.na(projet_new$age)] <- mean(train_data_clean$age, na.rm = TRUE)
 projet_new$adresse[is.na(projet_new$adresse)] <- mean(train_data_clean$adresse, na.rm = TRUE)
 
-projet_new$education[is.na(projet_new$education)] <- "Inconnu"
+# Assurez-vous que `education` dans `projet_new` a les mêmes niveaux que dans les données d'entraînement
 projet_new$education <- factor(projet_new$education, levels = levels(train_data_clean$education))
 
+<<<<<<< HEAD
 variables_a_normaliser <- c("revenus", "debcred", "debcarte", "autres")
 projet_new[variables_a_normaliser] <- scale(projet_new[variables_a_normaliser])
 
@@ -420,10 +468,21 @@ projet_new[variables_a_normaliser] <- scale(projet_new[variables_a_normaliser])
 x_new <- model.matrix(~ . - 1, data = projet_new)
 
 # Ajouter les colonnes manquantes pour correspondre à x_train
+=======
+# Normaliser les variables continues
+variables_a_normaliser <- c("revenus", "debcred", "debcarte", "autres")
+projet_new[variables_a_normaliser] <- scale(projet_new[variables_a_normaliser])
+
+# Créer `x_new` avec les mêmes colonnes que `x_train`
+x_new <- model.matrix(~ . - 1, data = projet_new)
+
+# Vérifiez et ajoutez les colonnes manquantes pour correspondre à `x_train`
+>>>>>>> 72e52d98393604efb22f9f810da000972733e231
 missing_cols <- setdiff(colnames(x_train), colnames(x_new))
 for (col in missing_cols) {
   x_new <- cbind(x_new, setNames(data.frame(rep(0, nrow(x_new))), col))
 }
+<<<<<<< HEAD
 
 x_new <- x_new[, colnames(x_train)]  # Réorganiser les colonnes
 x_new <- as.matrix(x_new)  # Conversion explicite en matrice
@@ -445,5 +504,32 @@ write.csv(projet_new, "projet_new_predictions.csv", row.names = FALSE)
 # 6. Résumé des prédictions
 cat("\n### Résumé des prédictions ###\n")
 table(Predicted = log_class_new)
+=======
+
+# Réorganisez les colonnes de `x_new` pour correspondre à `x_train`
+x_new <- x_new[, colnames(x_train)]
+
+# Convertir `x_new` en matrice pour la compatibilité avec le modèle Lasso
+x_new <- as.matrix(x_new)
+
+# Effectuer les prédictions sur `x_new` avec le meilleur lambda
+log_pred_new <- predict(final_lasso_model, newx = x_new, s = best_lambda, type = "response")
+log_class_new <- ifelse(log_pred_new > 0.4, "Oui", "Non")
+
+# Création du tableau final avec les informations demandées
+resultats <- data.frame(
+  client_id = projet_new$client,    # Numéro d'identification du client
+  classe_predite = log_class_new,   # Classe prédite ("Oui" ou "Non")
+  probabilite = log_pred_new        # Probabilité associée
+)
+
+# Sauvegarder le fichier avec les prédictions
+write.csv(resultats, "projet_new_predictions.csv", row.names = FALSE)
+
+# Affichage du résumé des prédictions
+cat("Résumé des prédictions :\n")
+print(table(Predicted = log_class_new))
+
+>>>>>>> 72e52d98393604efb22f9f810da000972733e231
 
 
