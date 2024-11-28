@@ -17,18 +17,18 @@ projet_new <- read.csv("projet_new.csv", sep = ",", dec = ".")
 str(projet)
 summary(projet)
 
-# 2. Visualisation des valeurs manquantes
+
+# 2. Traitement des valeurs manquantes
+# Remplacer 999 par NA dans `age` et `adresse`
+projet$age[projet$age == 999] <- NA
+projet$adresse[projet$adresse == 999] <- NA
+
+# 3. Visualisation des valeurs manquantes
 aggr(projet, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
      labels = names(projet), cex.axis = .7, gap = 3, 
      ylab = c("Données complètes", "Données manquantes"))
 
 colSums(is.na(projet))
-
-
-# 3. Traitement des valeurs extrêmes
-# Remplacer 999 par NA dans `age` et `adresse`
-projet$age[projet$age == 999] <- NA
-projet$adresse[projet$adresse == 999] <- NA
 
 # Supprimer les valeurs extrêmes des revenus (5e et 95e percentiles)
 projet_filtered <- subset(projet, revenus >= quantile(revenus, 0.05) & revenus <= quantile(revenus, 0.95))
@@ -459,10 +459,16 @@ log_pred_new <- predict(final_lasso_model, newx = x_new, type = "response")
 log_class_new <- ifelse(log_pred_new > 0.4, "Oui", "Non")
 projet_new$defaut <- log_class_new
 
-# 5. Sauvegarde des résultats
-write.csv(projet_new, "projet_new_predictions.csv", row.names = FALSE)
+# 5. Création du tableau final avec les informations demandées
+resultats <- data.frame(
+  client_id = projet_new$client,    # Numéro d'identification du client
+  classe_predite = log_class_new,   # Classe prédite ("Oui" ou "Non")
+  probabilite = log_pred_new        # Probabilité associée
+)
 
-# 6. Résumé des prédictions
+# 6. Sauvegarde du tableau de résultats sous forme de fichier CSV
+write.csv(resultats, "SAADAOU_LAASRI_ADANSAR.csv", row.names = FALSE)
+
+# 7. Résumé des prédictions
 cat("\n### Résumé des prédictions ###\n")
 table(Predicted = log_class_new)
-
